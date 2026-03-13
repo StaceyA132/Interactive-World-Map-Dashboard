@@ -28,6 +28,10 @@ const map = L.map('map', {
 }).setView([20, 0], 2);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
+const TIMELINE_MIN = 0;
+const TIMELINE_MAX = 7;
+const TIMELINE_INTERVAL_MS = 4000;
+
 // Layer groups
 const earthquakeLayer = L.layerGroup().addTo(map);
 const earthquakeClusters = L.markerClusterGroup({
@@ -184,6 +188,9 @@ async function loadWeather() {
 
 // UI wiring
 function bindControls() {
+  const timeline = document.getElementById('timeline');
+  const timelineLabel = document.getElementById('timeline-label');
+
   document.getElementById('layer-earthquakes').addEventListener('change', (e) => {
     if (e.target.checked) earthquakeLayer.addTo(map);
     else map.removeLayer(earthquakeLayer);
@@ -211,15 +218,23 @@ function bindControls() {
     loadWeather();
   });
 
-  const timeline = document.getElementById('timeline');
-  const timelineLabel = document.getElementById('timeline-label');
-  timeline.addEventListener('input', (e) => {
-    const days = Number(e.target.value) || 0;
+  function applyTimeline(val) {
+    const days = Number(val) || 0;
     state.timelineDays = Math.max(1, days === 0 ? 0.25 : days); // 0 -> 6h snapshot
     const label = days === 0 ? 'Last 6 hours (live)' : `Past ${days} day${days > 1 ? 's' : ''}`;
     timelineLabel.textContent = label;
     renderEarthquakes();
-  });
+  }
+
+  timeline.addEventListener('input', (e) => applyTimeline(e.target.value));
+
+  // Autoplay timeline: step every few seconds and wrap
+  setInterval(() => {
+    let next = Number(timeline.value) + 1;
+    if (next > TIMELINE_MAX) next = TIMELINE_MIN;
+    timeline.value = next;
+    applyTimeline(next);
+  }, TIMELINE_INTERVAL_MS);
 
   document.getElementById('dark-mode').addEventListener('change', (e) => {
     if (e.target.checked) {
