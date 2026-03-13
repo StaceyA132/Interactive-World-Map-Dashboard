@@ -59,10 +59,11 @@
         <h2>Timeline</h2>
         <div class="slider-row">
           <input type="range" id="timeline" min="0" max="7" value="1" />
-          <div class="slider-labels">
-            <span>Live</span>
-            <span>Past 7 days</span>
-          </div>
+          <button id="timeline-toggle" class="ghost" aria-pressed="true" title="Toggle timeline autoplay">⏸</button>
+        </div>
+        <div class="slider-labels">
+          <span>Live</span>
+          <span>Past 7 days</span>
         </div>
         <div class="pill" id="timeline-label">Showing last 24 hours</div>
       </div>
@@ -70,9 +71,9 @@
       <div class="card">
         <h2>Legend</h2>
         <ul class="legend">
-          <li><span class="legend-dot mag-low"></span> Mag &lt; 4</li>
-          <li><span class="legend-dot mag-mid"></span> Mag 4-5</li>
-          <li><span class="legend-dot mag-high"></span> Mag 5+</li>
+          <li><span class="legend-dot mag-low"></span> Magnitude &lt; 4</li>
+          <li><span class="legend-dot mag-mid"></span> Magnitude 4–5</li>
+          <li><span class="legend-dot mag-high"></span> Magnitude 5+</li>
           <li><span class="legend-dot flights"></span> Flights</li>
           <li><span class="legend-dot heat"></span> Heatmap: brighter = denser quakes</li>
           <li><span class="legend-dot cluster"></span> Clusters: size/color = quake count</li>

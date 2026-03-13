@@ -99,11 +99,10 @@ button:active { transform: translateY(1px); }
 .toggle input { accent-color: var(--accent); cursor: pointer; }
 
 .slider-row { display: flex; flex-direction: column; gap: 8px; }
-.slider-row input[type="range"] {
-  width: 100%;
-  accent-color: var(--accent);
-}
-.slider-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
+.slider-row { flex-direction: row; align-items: center; gap: 10px; }
+.slider-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.slider-row button { padding: 8px 12px; font-size: 14px; min-width: 46px; }
+.slider-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 6px; }
 
 .legend { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .legend li { display: flex; align-items: center; gap: 8px; color: var(--muted); }

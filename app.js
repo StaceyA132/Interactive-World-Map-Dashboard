@@ -30,7 +30,8 @@ L.control.zoom({ position: 'bottomright' }).addTo(map);
 
 const TIMELINE_MIN = 0;
 const TIMELINE_MAX = 7;
-const TIMELINE_INTERVAL_MS = 4000;
+// Timeline autoplay speed (milliseconds per step)
+const TIMELINE_INTERVAL_MS = 2000;
 
 // Layer groups
 const earthquakeLayer = L.layerGroup().addTo(map);
@@ -190,6 +191,8 @@ async function loadWeather() {
 function bindControls() {
   const timeline = document.getElementById('timeline');
   const timelineLabel = document.getElementById('timeline-label');
+  const timelineToggle = document.getElementById('timeline-toggle');
+  let timelineLoop = null;
 
   document.getElementById('layer-earthquakes').addEventListener('change', (e) => {
     if (e.target.checked) earthquakeLayer.addTo(map);
@@ -228,13 +231,36 @@ function bindControls() {
 
   timeline.addEventListener('input', (e) => applyTimeline(e.target.value));
 
-  // Autoplay timeline: step every few seconds and wrap
-  setInterval(() => {
+  function stepTimeline() {
     let next = Number(timeline.value) + 1;
     if (next > TIMELINE_MAX) next = TIMELINE_MIN;
     timeline.value = next;
     applyTimeline(next);
-  }, TIMELINE_INTERVAL_MS);
+  }
+
+  function startTimelineAutoplay() {
+    if (timelineLoop) clearInterval(timelineLoop);
+    timelineLoop = setInterval(stepTimeline, TIMELINE_INTERVAL_MS);
+    timelineToggle.textContent = '⏸';
+    timelineToggle.setAttribute('aria-pressed', 'true');
+  }
+
+  function stopTimelineAutoplay() {
+    if (timelineLoop) clearInterval(timelineLoop);
+    timelineLoop = null;
+    timelineToggle.textContent = '▶︎';
+    timelineToggle.setAttribute('aria-pressed', 'false');
+  }
+
+  timelineToggle.addEventListener('click', () => {
+    if (timelineLoop) {
+      stopTimelineAutoplay();
+    } else {
+      startTimelineAutoplay();
+    }
+  });
+
+  startTimelineAutoplay();
 
   document.getElementById('dark-mode').addEventListener('change', (e) => {
     if (e.target.checked) {
