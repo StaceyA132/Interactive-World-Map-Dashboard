@@ -4,7 +4,6 @@ from typing import List, Dict, Any
 import requests
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-from google.transit import gtfs_realtime_pb2
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
@@ -105,56 +104,6 @@ def fetch_weather() -> Dict[str, Any]:
     return {"weather": results, "provider": "openweather" if key else "open-meteo"}
 
 
-def fetch_transit() -> Dict[str, Any]:
-    json_url = os.getenv("GTFS_JSON_URL")
-    rt_url = os.getenv("GTFS_RT_VEHICLES")
-    if not rt_url and not json_url:
-        # Default to a public, keyless U.S. feed (BATA, Michigan)
-        rt_url = "https://batabustracker.com/gtfs-rt/vehiclepositions"
-
-    if rt_url:
-        feed = gtfs_realtime_pb2.FeedMessage()
-        resp = requests.get(rt_url, timeout=10)
-        resp.raise_for_status()
-        feed.ParseFromString(resp.content)
-        transit: List[Dict[str, Any]] = []
-        for entity in feed.entity:
-            vp = entity.vehicle
-            if not vp.position or vp.position.latitude == 0 and vp.position.longitude == 0:
-                continue
-            transit.append(
-                {
-                    "name": vp.trip.route_id or vp.trip.trip_id or "Vehicle",
-                    "lat": vp.position.latitude,
-                    "lon": vp.position.longitude,
-                    "status": vp.current_status.name if vp.current_status else "n/a",
-                }
-            )
-        return {"transit": transit, "source": rt_url, "type": "gtfs-rt"}
-
-    if json_url:
-        resp = requests.get(json_url, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-        transit: List[Dict[str, Any]] = []
-        for t in data[:100] if isinstance(data, list) else []:
-            lat = t.get("lat") or t.get("latitude")
-            lon = t.get("lon") or t.get("longitude")
-            if lat is None or lon is None:
-                continue
-            transit.append(
-                {
-                    "name": t.get("name") or t.get("route") or "Vehicle",
-                    "lat": lat,
-                    "lon": lon,
-                    "status": t.get("status") or t.get("trip_status") or "n/a",
-                }
-            )
-        return {"transit": transit, "source": json_url, "type": "json"}
-
-    return {"transit": [], "note": "Set GTFS_RT_VEHICLES (protobuf) or GTFS_JSON_URL (JSON array) to show transit vehicles."}
-
-
 @app.route("/")
 def root():
     return send_from_directory(app.static_folder, "index.html")
@@ -173,11 +122,6 @@ def api_flights():
 @app.route("/api/weather")
 def api_weather():
     return jsonify(fetch_weather())
-
-
-@app.route("/api/transit")
-def api_transit():
-    return jsonify(fetch_transit())
 
 
 if __name__ == "__main__":

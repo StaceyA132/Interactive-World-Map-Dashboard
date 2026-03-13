@@ -1,16 +1,14 @@
-// Leaflet dashboard with live USGS earthquakes + real flights/weather/transit via local API proxy
+// Leaflet dashboard with live USGS earthquakes + real flights/weather via local API proxy
 const ENDPOINTS = {
   earthquakes: '/api/earthquakes',
   flights: '/api/flights',
   weather: '/api/weather',
-  transit: '/api/transit',
 };
 
 const state = {
   earthquakes: [],
   flights: [],
   weather: [],
-  transit: [],
   lastFetched: null,
   timelineDays: 1, // default: last 24h
 };
@@ -39,7 +37,6 @@ const earthquakeClusters = L.markerClusterGroup({
 const quakeHeat = L.heatLayer([], { radius: 18, blur: 22, maxZoom: 6, minOpacity: 0.35 });
 const flightLayer = L.layerGroup().addTo(map);
 const weatherLayer = L.layerGroup().addTo(map);
-const transitLayer = L.layerGroup().addTo(map);
 
 // Helpers
 function colorForMag(mag) {
@@ -56,18 +53,17 @@ function updateStatus(text) {
   document.getElementById('status').textContent = text;
 }
 
-function updateStats({ quakes24 = 0, strong = 0, flights = 0, transit = 0 }) {
+function updateStats({ quakes24 = 0, strong = 0, flights = 0 }) {
   document.getElementById('stat-quakes').textContent = quakes24;
   document.getElementById('stat-strong').textContent = strong;
   document.getElementById('stat-flights').textContent = flights;
-  document.getElementById('stat-transit').textContent = transit;
 }
 
 function recalcStats() {
   const now = Date.now();
   const quakes24 = state.earthquakes.filter((q) => q.properties.time >= now - 24 * 60 * 60 * 1000).length;
   const strong = state.earthquakes.filter((q) => q.properties.mag >= 5).length;
-  updateStats({ quakes24, strong, flights: state.flights.length, transit: state.transit.length });
+  updateStats({ quakes24, strong, flights: state.flights.length });
 }
 
 // Earthquake rendering
@@ -161,19 +157,6 @@ function renderWeather() {
   });
 }
 
-function renderTransit() {
-  transitLayer.clearLayers();
-  state.transit.forEach((t) => {
-    const marker = L.circleMarker([t.lat, t.lon], {
-      radius: 6,
-      color: '#60a5fa',
-      weight: 1,
-      fillOpacity: 0.7,
-    }).bindPopup(`<strong>${t.name}</strong><br/>${t.status}`);
-    transitLayer.addLayer(marker);
-  });
-}
-
 async function loadFlights() {
   try {
     const res = await fetch(ENDPOINTS.flights);
@@ -199,19 +182,6 @@ async function loadWeather() {
   }
 }
 
-async function loadTransit() {
-  try {
-    const res = await fetch(ENDPOINTS.transit);
-    const json = await res.json();
-    state.transit = json.transit || [];
-    renderTransit();
-    recalcStats();
-  } catch (err) {
-    console.error(err);
-    updateStatus('Failed to load transit');
-  }
-}
-
 // UI wiring
 function bindControls() {
   document.getElementById('layer-earthquakes').addEventListener('change', (e) => {
@@ -234,16 +204,11 @@ function bindControls() {
     if (e.target.checked) weatherLayer.addTo(map);
     else map.removeLayer(weatherLayer);
   });
-  document.getElementById('layer-transit').addEventListener('change', (e) => {
-    if (e.target.checked) transitLayer.addTo(map);
-    else map.removeLayer(transitLayer);
-  });
 
   document.getElementById('btn-refresh').addEventListener('click', () => {
     loadEarthquakes();
     loadFlights();
     loadWeather();
-    loadTransit();
   });
 
   const timeline = document.getElementById('timeline');
@@ -272,7 +237,6 @@ function init() {
   loadEarthquakes();
   loadFlights();
   loadWeather();
-  loadTransit();
 }
 
 init();
