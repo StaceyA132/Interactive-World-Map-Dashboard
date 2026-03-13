@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive World Map Dashboard</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-sA+zWQJrCkShbH0rJiPO4r6RLYv5fXs3bMW3wAJ3q70="
+    crossorigin=""
+  />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <div class="title">Interactive World Map Dashboard</div>
+        <div class="subtitle">Leaflet + Live Earthquakes + Sample Layers</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="btn-refresh" class="ghost">Refresh Data</button>
+      <label class="toggle">
+        <input type="checkbox" id="dark-mode" />
+        <span>Dark basemap</span>
+      </label>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="controls">
+      <div class="card">
+        <h2>Data Layers</h2>
+        <div class="control-grid">
+          <label class="toggle">
+            <input type="checkbox" id="layer-earthquakes" checked />
+            <span>Earthquakes (USGS live)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="layer-flights" checked />
+            <span>Flights (sample)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="layer-weather" checked />
+            <span>Weather (sample)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="layer-transit" checked />
+            <span>Transit (sample)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Timeline</h2>
+        <div class="slider-row">
+          <input type="range" id="timeline" min="0" max="7" value="1" />
+          <div class="slider-labels">
+            <span>Live</span>
+            <span>Past 7 days</span>
+          </div>
+        </div>
+        <div class="pill" id="timeline-label">Showing last 24 hours</div>
+      </div>
+
+      <div class="card">
+        <h2>Legend</h2>
+        <ul class="legend">
+          <li><span class="legend-dot mag-low"></span> Mag &lt; 4</li>
+          <li><span class="legend-dot mag-mid"></span> Mag 4-5</li>
+          <li><span class="legend-dot mag-high"></span> Mag 5+</li>
+          <li><span class="legend-dot flights"></span> Flights (sample positions)</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="map-panel">
+      <div id="map"></div>
+      <div class="floating-cards">
+        <div class="pill" id="status">Loading data…</div>
+        <div class="info-card" id="stats">
+          <div class="stat">
+            <div class="stat-label">Earthquakes (24h)</div>
+            <div class="stat-value" id="stat-quakes">–</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Strong (&gt;=5.0)</div>
+            <div class="stat-value" id="stat-strong">–</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Flights (sample)</div>
+            <div class="stat-value" id="stat-flights">–</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Transit (sample)</div>
+            <div class="stat-value" id="stat-transit">–</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-o9N1j8Mkfug1kNfE2s3sN5p4SDeY/2vNh+lX6uljv3o="
+    crossorigin=""
+  ></script>
+  <script src="app.js"></script>
+</body>
+</html>
