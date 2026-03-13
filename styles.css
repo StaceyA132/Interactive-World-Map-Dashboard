@@ -117,6 +117,9 @@ button:active { transform: translateY(1px); }
 .mag-mid { background: #fbbf24; }
 .mag-high { background: #f87171; }
 .flights { background: #60a5fa; }
+.heat { background: #fb7185; opacity: 0.7; }
+.cluster { background: #a78bfa; opacity: 0.8; }
+.weather { background: #38bdf8; opacity: 0.8; }
 
 .map-panel { position: relative; }
 #map {
