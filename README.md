@@ -8,7 +8,7 @@ Leaflet-first dashboard that visualizes global signals on a world map. Includes 
    - `OPENSKY_USER`, `OPENSKY_PASS` (OpenSky basic auth; optional but recommended)
    - `OPENWEATHER_API_KEY` (if set, uses OpenWeather; otherwise falls back to Open-Meteo)
 3) Run the proxy + static server: `python server.py`
-4) Open `http://localhost:5000` (needs network for tiles + upstream APIs).
+4) Open `http://localhost:5500` (needs network for tiles + upstream APIs).
 5) Use the left controls to toggle layers and adjust the timeline slider.
 
 ## Files
