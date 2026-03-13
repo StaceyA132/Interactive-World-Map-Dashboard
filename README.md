@@ -20,3 +20,6 @@ Leaflet-first dashboard that visualizes global signals on a world map. Includes 
 - Cluster or heatmap for dense quake regions.
 - Persist layer/timeline selections in `localStorage`.
 - Add SwiftUI shell using `WKWebView` or native `MapKit` reading the same JSON.
+
+## CDN note
+Leaflet CSS/JS load from unpkg without SRI hashes because unpkg’s digests change occasionally. Chrome will block the files if the `integrity` hash mismatches, so SRI was removed for reliability during local dev.
