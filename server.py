@@ -108,6 +108,9 @@ def fetch_weather() -> Dict[str, Any]:
 def fetch_transit() -> Dict[str, Any]:
     json_url = os.getenv("GTFS_JSON_URL")
     rt_url = os.getenv("GTFS_RT_VEHICLES")
+    if not rt_url and not json_url:
+        # Default to a public, keyless U.S. feed (BATA, Michigan)
+        rt_url = "https://batabustracker.com/gtfs-rt/vehiclepositions"
 
     if rt_url:
         feed = gtfs_realtime_pb2.FeedMessage()

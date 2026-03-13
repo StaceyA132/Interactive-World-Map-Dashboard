@@ -27,7 +27,7 @@ Leaflet-first dashboard that visualizes global signals on a world map. Includes 
 - **Transit (GTFS)**: set one of:
   - `GTFS_RT_VEHICLES`: URL to a GTFS-RT VehiclePositions feed (protobuf). The proxy decodes it and maps route/trip to name.
   - `GTFS_JSON_URL`: URL to a JSON array of vehicles with `lat`/`lon` (or `latitude`/`longitude`) and optional `name`/`route`/`status`.
-  If neither is set, the transit layer stays empty.
+  If neither is set, a public keyless U.S. feed (BATA, Michigan) is used by default.
 
 ## Roadmap ideas
 - Cluster or heatmap for dense quake regions.
