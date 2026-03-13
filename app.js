@@ -1,10 +1,16 @@
-// Basic Leaflet dashboard with live USGS earthquakes + sample layers
+// Leaflet dashboard with live USGS earthquakes + real flights/weather/transit via local API proxy
 const ENDPOINTS = {
-  earthquakes: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson',
+  earthquakes: '/api/earthquakes',
+  flights: '/api/flights',
+  weather: '/api/weather',
+  transit: '/api/transit',
 };
 
 const state = {
   earthquakes: [],
+  flights: [],
+  weather: [],
+  transit: [],
   lastFetched: null,
   timelineDays: 1, // default: last 24h
 };
@@ -52,6 +58,13 @@ function updateStats({ quakes24 = 0, strong = 0, flights = 0, transit = 0 }) {
   document.getElementById('stat-transit').textContent = transit;
 }
 
+function recalcStats() {
+  const now = Date.now();
+  const quakes24 = state.earthquakes.filter((q) => q.properties.time >= now - 24 * 60 * 60 * 1000).length;
+  const strong = state.earthquakes.filter((q) => q.properties.mag >= 5).length;
+  updateStats({ quakes24, strong, flights: state.flights.length, transit: state.transit.length });
+}
+
 // Earthquake rendering
 function renderEarthquakes() {
   earthquakeLayer.clearLayers();
@@ -77,9 +90,7 @@ function renderEarthquakes() {
     earthquakeLayer.addLayer(marker);
   });
 
-  const strong = filtered.filter((q) => q.properties.mag >= 5).length;
-  const quakes24 = state.earthquakes.filter((q) => q.properties.time >= now - 24 * 60 * 60 * 1000).length;
-  updateStats({ quakes24, strong, flights: sampleFlights.length, transit: sampleTransit.length });
+  recalcStats();
   updateStatus(`Showing ${filtered.length} quakes (past ${state.timelineDays === 1 ? '24h' : `${state.timelineDays} days`})`);
 }
 
@@ -97,26 +108,9 @@ async function loadEarthquakes() {
   }
 }
 
-// Sample layers (placeholder data to wire UI)
-const sampleFlights = [
-  { id: 'UA-15', lat: 37.77, lon: -122.4, alt: 11000 },
-  { id: 'DL-88', lat: 51.47, lon: -0.45, alt: 9000 },
-  { id: 'AF-319', lat: 48.85, lon: 2.35, alt: 10500 },
-];
-const sampleWeather = [
-  { city: 'Reykjavik', lat: 64.13, lon: -21.82, temp: 4, icon: '🌧️' },
-  { city: 'Nairobi', lat: -1.29, lon: 36.82, temp: 23, icon: '⛅️' },
-  { city: 'Tokyo', lat: 35.68, lon: 139.65, temp: 18, icon: '☀️' },
-];
-const sampleTransit = [
-  { name: 'SF Muni L', lat: 37.755, lon: -122.47, status: 'On time' },
-  { name: 'London Tube', lat: 51.503, lon: -0.112, status: 'Minor delays' },
-  { name: 'Tokyo Metro', lat: 35.689, lon: 139.75, status: 'On time' },
-];
-
 function renderFlights() {
   flightLayer.clearLayers();
-  sampleFlights.forEach((f) => {
+  state.flights.forEach((f) => {
     const marker = L.marker([f.lat, f.lon], {
       title: f.id,
       icon: L.divIcon({
@@ -125,24 +119,42 @@ function renderFlights() {
         iconSize: [24, 24],
         iconAnchor: [12, 12],
       }),
-    }).bindPopup(`<strong>${f.id}</strong><br/>Altitude ${f.alt} m`);
+    }).bindPopup(`<strong>${f.id}</strong><br/>Altitude ${f.alt?.toFixed ? f.alt.toFixed(0) : f.alt || 'n/a'} m<br/>${f.country || ''}`);
     flightLayer.addLayer(marker);
   });
 }
 
+function weatherIcon(code) {
+  if (typeof code === 'string') return code; // already an icon/word
+  const map = {
+    0: '☀️',
+    1: '🌤️',
+    2: '⛅️',
+    3: '☁️',
+    45: '🌫️',
+    48: '🌫️',
+    51: '🌦️',
+    61: '🌧️',
+    71: '🌨️',
+    80: '🌧️',
+    95: '⛈️',
+  };
+  return map[code] || 'ℹ️';
+}
+
 function renderWeather() {
   weatherLayer.clearLayers();
-  sampleWeather.forEach((w) => {
+  state.weather.forEach((w) => {
     const marker = L.marker([w.lat, w.lon], {
-      icon: L.divIcon({ className: 'weather-icon', html: w.icon, iconSize: [26, 26], iconAnchor: [13, 13] }),
-    }).bindPopup(`<strong>${w.city}</strong><br/>${w.temp}°C`);
+      icon: L.divIcon({ className: 'weather-icon', html: weatherIcon(w.icon), iconSize: [26, 26], iconAnchor: [13, 13] }),
+    }).bindPopup(`<strong>${w.city}</strong><br/>${w.temp ?? '–'}°C`);
     weatherLayer.addLayer(marker);
   });
 }
 
 function renderTransit() {
   transitLayer.clearLayers();
-  sampleTransit.forEach((t) => {
+  state.transit.forEach((t) => {
     const marker = L.circleMarker([t.lat, t.lon], {
       radius: 6,
       color: '#60a5fa',
@@ -151,6 +163,44 @@ function renderTransit() {
     }).bindPopup(`<strong>${t.name}</strong><br/>${t.status}`);
     transitLayer.addLayer(marker);
   });
+}
+
+async function loadFlights() {
+  try {
+    const res = await fetch(ENDPOINTS.flights);
+    const json = await res.json();
+    state.flights = json.flights || [];
+    renderFlights();
+    recalcStats();
+  } catch (err) {
+    console.error(err);
+    updateStatus('Failed to load flights');
+  }
+}
+
+async function loadWeather() {
+  try {
+    const res = await fetch(ENDPOINTS.weather);
+    const json = await res.json();
+    state.weather = json.weather || [];
+    renderWeather();
+  } catch (err) {
+    console.error(err);
+    updateStatus('Failed to load weather');
+  }
+}
+
+async function loadTransit() {
+  try {
+    const res = await fetch(ENDPOINTS.transit);
+    const json = await res.json();
+    state.transit = json.transit || [];
+    renderTransit();
+    recalcStats();
+  } catch (err) {
+    console.error(err);
+    updateStatus('Failed to load transit');
+  }
 }
 
 // UI wiring
@@ -172,7 +222,12 @@ function bindControls() {
     else map.removeLayer(transitLayer);
   });
 
-  document.getElementById('btn-refresh').addEventListener('click', loadEarthquakes);
+  document.getElementById('btn-refresh').addEventListener('click', () => {
+    loadEarthquakes();
+    loadFlights();
+    loadWeather();
+    loadTransit();
+  });
 
   const timeline = document.getElementById('timeline');
   const timelineLabel = document.getElementById('timeline-label');
@@ -196,11 +251,11 @@ function bindControls() {
 }
 
 function init() {
-  renderFlights();
-  renderWeather();
-  renderTransit();
   bindControls();
   loadEarthquakes();
+  loadFlights();
+  loadWeather();
+  loadTransit();
 }
 
 init();
