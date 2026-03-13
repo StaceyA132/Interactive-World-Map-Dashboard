@@ -27,11 +27,6 @@ const map = L.map('map', {
   zoomControl: false,
 }).setView([20, 0], 2);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
-L.control.scale({ position: 'bottomleft' }).addTo(map);
-
-const TIMELINE_MIN = 0;
-const TIMELINE_MAX = 7;
-const TIMELINE_INTERVAL_MS = 4000;
 
 const TIMELINE_MIN = 0;
 const TIMELINE_MAX = 7;
@@ -60,13 +55,6 @@ function formatDate(ts) {
 
 function updateStatus(text) {
   document.getElementById('status').textContent = text;
-}
-
-function updateLastUpdated() {
-  const el = document.getElementById('last-updated');
-  if (!el) return;
-  const ts = state.lastFetched ? state.lastFetched.toLocaleTimeString() : '—';
-  el.textContent = `Updated: ${ts}`;
 }
 
 function updateStats({ quakes24 = 0, strong = 0, flights = 0 }) {
@@ -113,7 +101,6 @@ function renderEarthquakes() {
 
   recalcStats();
   updateStatus(`Showing ${filtered.length} quakes (past ${state.timelineDays === 1 ? '24h' : `${state.timelineDays} days`})`);
-  updateLayerPill();
 }
 
 async function loadEarthquakes() {
@@ -124,7 +111,6 @@ async function loadEarthquakes() {
     state.earthquakes = json.features || [];
     state.lastFetched = new Date();
     renderEarthquakes();
-    updateLastUpdated();
   } catch (err) {
     console.error(err);
     updateStatus('Failed to load earthquakes');
@@ -208,27 +194,22 @@ function bindControls() {
   document.getElementById('layer-earthquakes').addEventListener('change', (e) => {
     if (e.target.checked) earthquakeLayer.addTo(map);
     else map.removeLayer(earthquakeLayer);
-    updateLayerPill();
   });
   document.getElementById('layer-quake-clusters').addEventListener('change', (e) => {
     if (e.target.checked) earthquakeClusters.addTo(map);
     else map.removeLayer(earthquakeClusters);
-    updateLayerPill();
   });
   document.getElementById('layer-quake-heat').addEventListener('change', (e) => {
     if (e.target.checked) quakeHeat.addTo(map);
     else map.removeLayer(quakeHeat);
-    updateLayerPill();
   });
   document.getElementById('layer-flights').addEventListener('change', (e) => {
     if (e.target.checked) flightLayer.addTo(map);
     else map.removeLayer(flightLayer);
-    updateLayerPill();
   });
   document.getElementById('layer-weather').addEventListener('change', (e) => {
     if (e.target.checked) weatherLayer.addTo(map);
     else map.removeLayer(weatherLayer);
-    updateLayerPill();
   });
 
   document.getElementById('btn-refresh').addEventListener('click', () => {
@@ -243,9 +224,6 @@ function bindControls() {
     const label = days === 0 ? 'Last 6 hours (live)' : `Past ${days} day${days > 1 ? 's' : ''}`;
     timelineLabel.textContent = label;
     renderEarthquakes();
-    const pct = Math.round(((days - TIMELINE_MIN) / (TIMELINE_MAX - TIMELINE_MIN)) * 100);
-    const prog = document.getElementById('timeline-progress-fill');
-    if (prog) prog.style.width = `${pct}%`;
   }
 
   timeline.addEventListener('input', (e) => applyTimeline(e.target.value));
@@ -267,32 +245,6 @@ function bindControls() {
       lightTiles.addTo(map);
     }
   });
-
-  document.getElementById('btn-locate').addEventListener('click', () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        map.setView([latitude, longitude], 6, { animate: true });
-      },
-      (err) => console.warn('geolocation denied', err),
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
-  });
-}
-
-function updateLayerPill() {
-  const pill = document.getElementById('layer-pill');
-  if (!pill) return;
-  const on = (id) => document.getElementById(id)?.checked;
-  const parts = [
-    `EQ ${on('layer-earthquakes') ? '●' : '✕'}`,
-    `Cluster ${on('layer-quake-clusters') ? '●' : '✕'}`,
-    `Heat ${on('layer-quake-heat') ? '●' : '✕'}`,
-    `Flights ${on('layer-flights') ? '●' : '✕'}`,
-    `Weather ${on('layer-weather') ? '●' : '✕'}`,
-  ];
-  pill.textContent = `Layers: ${parts.join('  ')}`;
 }
 
 function init() {

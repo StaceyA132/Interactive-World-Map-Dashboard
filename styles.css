@@ -9,17 +9,15 @@
   --border: #232a36;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   --radius: 14px;
-  --font: "Space Grotesk", "Inter", system-ui, -apple-system, sans-serif;
+  --font: "Manrope", "Inter", system-ui, -apple-system, sans-serif;
 }
 
 * { box-sizing: border-box; }
 body {
   margin: 0;
   font-family: var(--font);
-  background:
-    radial-gradient(circle at 20% 20%, rgba(79, 209, 197, 0.08), transparent 32%),
+  background: radial-gradient(circle at 20% 20%, rgba(79, 209, 197, 0.08), transparent 32%),
     radial-gradient(circle at 80% 0%, rgba(255, 179, 71, 0.07), transparent 30%),
-    linear-gradient(135deg, #0b1220 0%, #0f172a 35%, #0b0f1c 70%),
     var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -78,13 +76,6 @@ button:active { transform: translateY(1px); }
 }
 
 .controls { display: flex; flex-direction: column; gap: 14px; }
-.controls details summary {
-  font-weight: 700;
-  cursor: pointer;
-  list-style: none;
-  outline: none;
-}
-.controls details summary::-webkit-details-marker { display: none; }
 .card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -147,25 +138,6 @@ button:active { transform: translateY(1px); }
   filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
 }
 
-.timeline-progress {
-  width: 100%;
-  height: 6px;
-  background: #1f2937;
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-#timeline-progress-fill {
-  width: 0%;
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  transition: width 0.3s ease;
-}
-
-.layer-pill { text-transform: uppercase; letter-spacing: 0.6px; font-size: 11px; }
-
-.floating-cards .pill { backdrop-filter: blur(10px); }
-
 .floating-cards {
   position: absolute;
   top: 12px;
@@ -199,6 +171,6 @@ button:active { transform: translateY(1px); }
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }
   #map { height: 70vh; }
-  .controls { flex-direction: column; }
-  .card, details.card { min-width: unset; }
+  .controls { flex-direction: row; overflow-x: auto; }
+  .card { min-width: 260px; }
 }
