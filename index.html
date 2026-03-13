@@ -6,6 +6,8 @@
   <title>Interactive World Map Dashboard</title>
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="vendor/leaflet/plugins/markercluster/MarkerCluster.css" />
+  <link rel="stylesheet" href="vendor/leaflet/plugins/markercluster/MarkerCluster.Default.css" />
 </head>
 <body>
   <header class="topbar">
@@ -45,6 +47,14 @@
           <label class="toggle">
             <input type="checkbox" id="layer-transit" checked />
             <span>Transit (sample)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="layer-quake-clusters" checked />
+            <span>Earthquake clusters</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="layer-quake-heat" />
+            <span>Earthquake heatmap</span>
           </label>
         </div>
       </div>
@@ -99,6 +109,8 @@
   </main>
 
   <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="vendor/leaflet/plugins/markercluster/leaflet.markercluster.js"></script>
+  <script src="vendor/leaflet/plugins/heat/leaflet-heat.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

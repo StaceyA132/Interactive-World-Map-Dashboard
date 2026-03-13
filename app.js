@@ -32,6 +32,11 @@ L.control.zoom({ position: 'bottomright' }).addTo(map);
 
 // Layer groups
 const earthquakeLayer = L.layerGroup().addTo(map);
+const earthquakeClusters = L.markerClusterGroup({
+  showCoverageOnHover: false,
+  spiderfyOnMaxZoom: true,
+});
+const quakeHeat = L.heatLayer([], { radius: 18, blur: 22, maxZoom: 6, minOpacity: 0.35 });
 const flightLayer = L.layerGroup().addTo(map);
 const weatherLayer = L.layerGroup().addTo(map);
 const transitLayer = L.layerGroup().addTo(map);
@@ -68,6 +73,8 @@ function recalcStats() {
 // Earthquake rendering
 function renderEarthquakes() {
   earthquakeLayer.clearLayers();
+  earthquakeClusters.clearLayers();
+  quakeHeat.setLatLngs([]);
   const now = Date.now();
   const cutoff = now - state.timelineDays * 24 * 60 * 60 * 1000;
 
@@ -88,6 +95,8 @@ function renderEarthquakes() {
       <a href="${url}" target="_blank" rel="noreferrer">USGS detail</a>
     `);
     earthquakeLayer.addLayer(marker);
+    earthquakeClusters.addLayer(marker);
+    quakeHeat.addLatLng([lat, lon, Math.max(0.5, mag || 1)]);
   });
 
   recalcStats();
@@ -208,6 +217,14 @@ function bindControls() {
   document.getElementById('layer-earthquakes').addEventListener('change', (e) => {
     if (e.target.checked) earthquakeLayer.addTo(map);
     else map.removeLayer(earthquakeLayer);
+  });
+  document.getElementById('layer-quake-clusters').addEventListener('change', (e) => {
+    if (e.target.checked) earthquakeClusters.addTo(map);
+    else map.removeLayer(earthquakeClusters);
+  });
+  document.getElementById('layer-quake-heat').addEventListener('change', (e) => {
+    if (e.target.checked) quakeHeat.addTo(map);
+    else map.removeLayer(quakeHeat);
   });
   document.getElementById('layer-flights').addEventListener('change', (e) => {
     if (e.target.checked) flightLayer.addTo(map);
