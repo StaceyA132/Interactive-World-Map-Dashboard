@@ -1,0 +1,6 @@
+DerivedData/
+*.xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.DS_Store
+.vscode/
