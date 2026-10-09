@@ -21,14 +21,14 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python server.py
 ```
-Then open http://localhost:5000.
+Then open http://localhost:5050.
 
 ### Optional environment variables
 | Variable | Purpose |
 | --- | --- |
 | `OPENSKY_USER`, `OPENSKY_PASS` | OpenSky credentials for higher flight rate limits |
 | `OPENWEATHER_API_KEY` | Use OpenWeather instead of the keyless Open-Meteo |
-| `PORT` | Server port (default `5000`) |
+| `PORT` | Server port (default `5050`; macOS uses 5000 for AirPlay) |
 | `HOST` | Bind address (default `127.0.0.1`; use `0.0.0.0` to reach it from other devices) |
 | `FLASK_DEBUG=1` | Enable auto-reload while developing |
 
@@ -52,7 +52,7 @@ ios/              SwiftUI WKWebView app
 1. Start the server (`python server.py`).
 2. Open `ios/WorldMapDashboard.xcodeproj` in Xcode and run on a simulator.
 
-The app loads `http://127.0.0.1:5000`. To run on a physical iPhone, start the server with `HOST=0.0.0.0` and change the URL in `ContentView.swift` to your Mac's local IP address.
+The app loads `http://127.0.0.1:5050`. To run on a physical iPhone, start the server with `HOST=0.0.0.0` and change the URL in `ContentView.swift` to your Mac's local IP address.
 
 ## Roadmap
 - Remember layer and timeline choices between visits.

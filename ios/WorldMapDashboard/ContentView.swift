@@ -8,7 +8,7 @@
 import SwiftUI
 struct ContentView: View {
     // Simulator only: on a physical device, use your Mac's LAN IP and run the server with HOST=0.0.0.0.
-    private let dashboardURL = URL(string: "http://127.0.0.1:5000")!
+    private let dashboardURL = URL(string: "http://127.0.0.1:5050")!
     @State private var isLoading = true
 
     var body: some View {
