@@ -1,12 +1,12 @@
 import os
-from typing import List, Dict, Any
+import time
+from typing import List, Dict, Any, Callable
 
 import requests
 from flask import Flask, jsonify, request, send_from_directory
-from flask_cors import CORS
 
-app = Flask(__name__, static_folder='.', static_url_path='')
-CORS(app)
+# Only files in public/ are served, so server.py, .git, etc. stay private.
+app = Flask(__name__, static_folder="public", static_url_path="")
 
 USGS_URL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
 DEFAULT_WEATHER_LOCS = [
@@ -15,6 +15,20 @@ DEFAULT_WEATHER_LOCS = [
     {"city": "Tokyo", "lat": 35.68, "lon": 139.65},
 ]
 
+# Seconds to reuse an upstream response (keeps us under OpenSky's rate limits).
+CACHE_TTL = {"earthquakes": 120, "flights": 60, "weather": 600}
+_cache: Dict[str, Dict[str, Any]] = {}
+
+
+def cached(key: str, ttl: int, fetch: Callable[[], Dict[str, Any]]) -> Dict[str, Any]:
+    hit = _cache.get(key)
+    if hit and time.time() - hit["at"] < ttl:
+        return hit["data"]
+    data = fetch()
+    if not data.get("error"):
+        _cache[key] = {"at": time.time(), "data": data}
+    return data
+
 
 def fetch_earthquakes() -> Dict[str, Any]:
     r = requests.get(USGS_URL, timeout=10)
@@ -22,10 +36,9 @@ def fetch_earthquakes() -> Dict[str, Any]:
     return r.json()
 
 
-def fetch_flights() -> Dict[str, Any]:
+def fetch_flights(bbox: str = "") -> Dict[str, Any]:
     user = os.getenv("OPENSKY_USER")
     password = os.getenv("OPENSKY_PASS")
-    bbox = request.args.get("bbox")
     params = {}
     if bbox:
         parts = bbox.split(",")
@@ -66,42 +79,38 @@ def fetch_flights() -> Dict[str, Any]:
     return {"flights": flights, "source": "opensky", "requiresAuth": not bool(auth)}
 
 
+def fetch_city_weather(loc: Dict[str, Any], key: str) -> Dict[str, Any]:
+    if key:
+        url = "https://api.openweathermap.org/data/2.5/weather"
+        params = {"lat": loc["lat"], "lon": loc["lon"], "appid": key, "units": "metric"}
+        resp = requests.get(url, params=params, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        return {
+            "temp": data.get("main", {}).get("temp"),
+            "icon": data.get("weather", [{}])[0].get("main", "?"),
+        }
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {"latitude": loc["lat"], "longitude": loc["lon"], "current_weather": True}
+    resp = requests.get(url, params=params, timeout=10)
+    resp.raise_for_status()
+    data = resp.json().get("current_weather", {})
+    return {"temp": data.get("temperature"), "icon": data.get("weathercode")}
+
+
 def fetch_weather() -> Dict[str, Any]:
-    key = os.getenv("OPENWEATHER_API_KEY")
-    locations = DEFAULT_WEATHER_LOCS
+    key = os.getenv("OPENWEATHER_API_KEY", "")
     results: List[Dict[str, Any]] = []
-    for loc in locations:
-        if key:
-            url = "https://api.openweathermap.org/data/2.5/weather"
-            params = {"lat": loc["lat"], "lon": loc["lon"], "appid": key, "units": "metric"}
-            resp = requests.get(url, params=params, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-            results.append(
-                {
-                    "city": loc["city"],
-                    "lat": loc["lat"],
-                    "lon": loc["lon"],
-                    "temp": data.get("main", {}).get("temp"),
-                    "icon": data.get("weather", [{}])[0].get("main", "?")
-                }
-            )
-        else:
-            url = "https://api.open-meteo.com/v1/forecast"
-            params = {"latitude": loc["lat"], "longitude": loc["lon"], "current_weather": True}
-            resp = requests.get(url, params=params, timeout=10)
-            resp.raise_for_status()
-            data = resp.json().get("current_weather", {})
-            results.append(
-                {
-                    "city": loc["city"],
-                    "lat": loc["lat"],
-                    "lon": loc["lon"],
-                    "temp": data.get("temperature"),
-                    "icon": data.get("weathercode"),
-                }
-            )
-    return {"weather": results, "provider": "openweather" if key else "open-meteo"}
+    for loc in DEFAULT_WEATHER_LOCS:
+        try:
+            # One failing city shouldn't take down the whole layer.
+            results.append({**loc, **fetch_city_weather(loc, key)})
+        except Exception as exc:  # pragma: no cover
+            app.logger.warning("Weather fetch failed for %s: %s", loc["city"], exc)
+    out: Dict[str, Any] = {"weather": results, "provider": "openweather" if key else "open-meteo"}
+    if not results:
+        out["error"] = "All weather lookups failed"
+    return out
 
 
 @app.route("/")
@@ -111,19 +120,28 @@ def root():
 
 @app.route("/api/earthquakes")
 def api_earthquakes():
-    return jsonify(fetch_earthquakes())
+    try:
+        return jsonify(cached("earthquakes", CACHE_TTL["earthquakes"], fetch_earthquakes))
+    except Exception as exc:
+        return jsonify({"features": [], "error": str(exc)}), 502
 
 
 @app.route("/api/flights")
 def api_flights():
-    return jsonify(fetch_flights())
+    bbox = request.args.get("bbox", "")
+    data = cached(f"flights:{bbox}", CACHE_TTL["flights"], lambda: fetch_flights(bbox))
+    return jsonify(data), (502 if data.get("error") else 200)
 
 
 @app.route("/api/weather")
 def api_weather():
-    return jsonify(fetch_weather())
+    data = cached("weather", CACHE_TTL["weather"], fetch_weather)
+    return jsonify(data), (502 if data.get("error") else 200)
 
 
 if __name__ == "__main__":
+    # Localhost + no debugger by default; the Werkzeug debugger allows remote code execution.
+    # Set HOST=0.0.0.0 to reach it from other devices, FLASK_DEBUG=1 for auto-reload.
+    host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host=host, port=port, debug=os.getenv("FLASK_DEBUG") == "1")
