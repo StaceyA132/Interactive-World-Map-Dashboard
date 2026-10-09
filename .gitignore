@@ -4,3 +4,4 @@ DerivedData/
 *.xcscmblueprint
 *.DS_Store
 .vscode/
+xcuserdata/
