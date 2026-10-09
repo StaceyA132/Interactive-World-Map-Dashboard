@@ -1,0 +1,20 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: world-map-dashboard
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn server:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      # Optional secrets: Render asks for these when the Blueprint is created. Leave blank to skip.
+      - key: OPENSKY_USER
+        sync: false
+      - key: OPENSKY_PASS
+        sync: false
+      - key: OPENWEATHER_API_KEY
+        sync: false

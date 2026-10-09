@@ -48,7 +48,17 @@ def cached(key: str, ttl: int, fetch: Callable[[], Dict[str, Any]]) -> Dict[str,
 def fetch_earthquakes() -> Dict[str, Any]:
     r = requests.get(USGS_URL, timeout=10)
     r.raise_for_status()
-    return r.json()
+    # Keep only what the map uses; the full feed is ~1.4 MB.
+    keep = ("mag", "place", "time", "url")
+    features = [
+        {
+            "geometry": {"coordinates": f["geometry"]["coordinates"]},
+            "properties": {k: f["properties"].get(k) for k in keep},
+        }
+        for f in r.json().get("features", [])
+        if f.get("geometry")
+    ]
+    return {"features": features}
 
 
 def fetch_flights(bbox: str = "") -> Dict[str, Any]:
