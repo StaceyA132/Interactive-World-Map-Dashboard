@@ -40,7 +40,6 @@ struct WebDashboardView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
-        config.preferences.javaScriptEnabled = true
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -57,7 +56,6 @@ struct WebDashboardView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         guard context.coordinator.didInitialLoad == false else { return }
         context.coordinator.didInitialLoad = true
-        isLoading = true
         let req = URLRequest(url: url,
                              cachePolicy: .reloadIgnoringLocalCacheData,
                              timeoutInterval: 15)

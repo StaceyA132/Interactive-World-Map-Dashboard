@@ -7,11 +7,13 @@
 
 import SwiftUI
 struct ContentView: View {
+    // Simulator only: on a physical device, use your Mac's LAN IP and run the server with HOST=0.0.0.0.
+    private let dashboardURL = URL(string: "http://127.0.0.1:5000")!
     @State private var isLoading = true
 
     var body: some View {
         ZStack {
-            WebDashboardView(url: URL(string: "http://127.0.0.1:5500")!, isLoading: $isLoading)
+            WebDashboardView(url: dashboardURL, isLoading: $isLoading)
                 .ignoresSafeArea()
             if isLoading {
                 Color.black.opacity(0.25).ignoresSafeArea()
