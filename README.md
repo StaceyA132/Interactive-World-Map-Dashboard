@@ -32,8 +32,6 @@ Then open http://localhost:5050.
 | `HOST` | Bind address (default `127.0.0.1`; use `0.0.0.0` to reach it from other devices) |
 | `FLASK_DEBUG=1` | Enable auto-reload while developing |
 
-## Deploy
-The repo includes a [Render](https://render.com) Blueprint (`render.yaml`). In Render, choose **New → Blueprint**, select this repo, and it will build and start the app with gunicorn. API keys are optional and can be added as environment variables in the Render dashboard.
 
 ## How it works
 The browser never talks to the data providers directly. `server.py` proxies USGS, OpenSky, and Open-Meteo/OpenWeather so API keys stay on the server, normalizes the responses, and caches them briefly (1–10 minutes) to stay within rate limits. Only the `public/` folder is served as static files.
