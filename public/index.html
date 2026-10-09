@@ -44,14 +44,11 @@
             <input type="checkbox" id="layer-weather" checked />
             <span>Weather</span>
           </label>
-          <label class="toggle">
-            <input type="checkbox" id="layer-quake-clusters" checked />
-            <span>Earthquake clusters</span>
-          </label>
-          <label class="toggle">
-            <input type="checkbox" id="layer-quake-heat" />
-            <span>Earthquake heatmap</span>
-          </label>
+        </div>
+        <div class="segmented" role="radiogroup" aria-label="Earthquake display">
+          <label><input type="radio" name="quake-mode" value="markers" checked /><span>Markers</span></label>
+          <label><input type="radio" name="quake-mode" value="clusters" /><span>Clusters</span></label>
+          <label><input type="radio" name="quake-mode" value="heat" /><span>Heatmap</span></label>
         </div>
       </div>
 
@@ -88,7 +85,7 @@
         <div class="pill" id="status">Loading data…</div>
         <div class="info-card" id="stats">
           <div class="stat">
-            <div class="stat-label">Earthquakes (24h)</div>
+            <div class="stat-label" id="stat-quakes-label">Earthquakes (24h)</div>
             <div class="stat-value" id="stat-quakes">–</div>
           </div>
           <div class="stat">
