@@ -11,8 +11,23 @@ app = Flask(__name__, static_folder="public", static_url_path="")
 USGS_URL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
 DEFAULT_WEATHER_LOCS = [
     {"city": "Reykjavik", "lat": 64.13, "lon": -21.82},
+    {"city": "Anchorage", "lat": 61.22, "lon": -149.90},
+    {"city": "Los Angeles", "lat": 34.05, "lon": -118.24},
     {"city": "New York", "lat": 40.71, "lon": -74.01},
+    {"city": "Mexico City", "lat": 19.43, "lon": -99.13},
+    {"city": "São Paulo", "lat": -23.55, "lon": -46.63},
+    {"city": "London", "lat": 51.51, "lon": -0.13},
+    {"city": "Lagos", "lat": 6.52, "lon": 3.38},
+    {"city": "Cairo", "lat": 30.04, "lon": 31.24},
+    {"city": "Nairobi", "lat": -1.29, "lon": 36.82},
+    {"city": "Cape Town", "lat": -33.92, "lon": 18.42},
+    {"city": "Moscow", "lat": 55.76, "lon": 37.62},
+    {"city": "Dubai", "lat": 25.20, "lon": 55.27},
+    {"city": "Mumbai", "lat": 19.08, "lon": 72.88},
+    {"city": "Singapore", "lat": 1.35, "lon": 103.82},
+    {"city": "Beijing", "lat": 39.90, "lon": 116.41},
     {"city": "Tokyo", "lat": 35.68, "lon": 139.65},
+    {"city": "Sydney", "lat": -33.87, "lon": 151.21},
 ]
 
 # Seconds to reuse an upstream response (keeps us under OpenSky's rate limits).
@@ -79,34 +94,90 @@ def fetch_flights(bbox: str = "") -> Dict[str, Any]:
     return {"flights": flights, "source": "opensky", "requiresAuth": not bool(auth)}
 
 
-def fetch_city_weather(loc: Dict[str, Any], key: str) -> Dict[str, Any]:
-    if key:
-        url = "https://api.openweathermap.org/data/2.5/weather"
-        params = {"lat": loc["lat"], "lon": loc["lon"], "appid": key, "units": "metric"}
-        resp = requests.get(url, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-        return {
-            "temp": data.get("main", {}).get("temp"),
-            "icon": data.get("weather", [{}])[0].get("main", "?"),
-        }
-    url = "https://api.open-meteo.com/v1/forecast"
-    params = {"latitude": loc["lat"], "longitude": loc["lon"], "current_weather": True}
-    resp = requests.get(url, params=params, timeout=10)
-    resp.raise_for_status()
-    data = resp.json().get("current_weather", {})
-    return {"temp": data.get("temperature"), "icon": data.get("weathercode")}
+def wmo_condition(code: Any) -> str:
+    """Map an Open-Meteo WMO weather code to a shared condition name."""
+    if code is None:
+        return "unknown"
+    if code == 0:
+        return "clear"
+    if code in (1, 2):
+        return "partly"
+    if code == 3:
+        return "cloudy"
+    if code in (45, 48):
+        return "fog"
+    if 51 <= code <= 57:
+        return "drizzle"
+    if 61 <= code <= 67 or 80 <= code <= 82:
+        return "rain"
+    if 71 <= code <= 77 or code in (85, 86):
+        return "snow"
+    if code >= 95:
+        return "storm"
+    return "unknown"
 
 
-def fetch_weather() -> Dict[str, Any]:
-    key = os.getenv("OPENWEATHER_API_KEY", "")
+def owm_condition(code: Any) -> str:
+    """Map an OpenWeather condition id to the same condition names."""
+    if not isinstance(code, int):
+        return "unknown"
+    if code == 800:
+        return "clear"
+    if code in (801, 802):
+        return "partly"
+    if code in (803, 804):
+        return "cloudy"
+    return {2: "storm", 3: "drizzle", 5: "rain", 6: "snow", 7: "fog"}.get(code // 100, "unknown")
+
+
+def fetch_openweather(key: str) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
     for loc in DEFAULT_WEATHER_LOCS:
         try:
             # One failing city shouldn't take down the whole layer.
-            results.append({**loc, **fetch_city_weather(loc, key)})
+            params = {"lat": loc["lat"], "lon": loc["lon"], "appid": key, "units": "metric"}
+            resp = requests.get("https://api.openweathermap.org/data/2.5/weather", params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            results.append({
+                **loc,
+                "temp": data.get("main", {}).get("temp"),
+                "condition": owm_condition(data.get("weather", [{}])[0].get("id")),
+            })
         except Exception as exc:  # pragma: no cover
             app.logger.warning("Weather fetch failed for %s: %s", loc["city"], exc)
+    return results
+
+
+def fetch_open_meteo() -> List[Dict[str, Any]]:
+    # Open-Meteo accepts comma-separated coordinates and returns one entry per location.
+    params = {
+        "latitude": ",".join(str(loc["lat"]) for loc in DEFAULT_WEATHER_LOCS),
+        "longitude": ",".join(str(loc["lon"]) for loc in DEFAULT_WEATHER_LOCS),
+        "current_weather": True,
+    }
+    resp = requests.get("https://api.open-meteo.com/v1/forecast", params=params, timeout=10)
+    resp.raise_for_status()
+    data = resp.json()
+    entries = data if isinstance(data, list) else [data]
+    results: List[Dict[str, Any]] = []
+    for loc, entry in zip(DEFAULT_WEATHER_LOCS, entries):
+        current = entry.get("current_weather", {})
+        results.append({
+            **loc,
+            "temp": current.get("temperature"),
+            "condition": wmo_condition(current.get("weathercode")),
+        })
+    return results
+
+
+def fetch_weather() -> Dict[str, Any]:
+    key = os.getenv("OPENWEATHER_API_KEY", "")
+    try:
+        results = fetch_openweather(key) if key else fetch_open_meteo()
+    except Exception as exc:  # pragma: no cover
+        app.logger.warning("Weather fetch failed: %s", exc)
+        results = []
     out: Dict[str, Any] = {"weather": results, "provider": "openweather" if key else "open-meteo"}
     if not results:
         out["error"] = "All weather lookups failed"

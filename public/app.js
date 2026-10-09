@@ -6,6 +6,7 @@ const ENDPOINTS = {
 };
 
 const HOUR_MS = 60 * 60 * 1000;
+const AUTO_REFRESH_MS = 5 * 60 * 1000;
 
 const state = {
   earthquakes: [],
@@ -18,16 +19,18 @@ const state = {
 };
 
 // Map setup
-const lightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; OpenStreetMap, &copy; CARTO',
-});
-const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; OpenStreetMap, &copy; CARTO',
-});
+// Esri Canvas basemaps (keyless; CARTO's free tiles now require an API key)
+const ESRI_CANVAS = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/{style}/MapServer/tile/{z}/{y}/{x}';
+const tileOptions = {
+  maxZoom: 16,
+  attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+};
+const lightTiles = L.tileLayer(ESRI_CANVAS, { ...tileOptions, style: 'World_Light_Gray_Base' });
+const darkTiles = L.tileLayer(ESRI_CANVAS, { ...tileOptions, style: 'World_Dark_Gray_Base' });
 
 const map = L.map('map', {
   worldCopyJump: true,
-  layers: [lightTiles],
+  layers: [darkTiles],
   zoomControl: false,
 }).setView([20, 0], 2);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -43,8 +46,25 @@ const quakeMarkers = L.layerGroup();
 const quakeClusters = L.markerClusterGroup({
   showCoverageOnHover: false,
   spiderfyOnMaxZoom: true,
+  // Size by count, color by the strongest quake inside (matches the legend)
+  iconCreateFunction(cluster) {
+    const count = cluster.getChildCount();
+    const maxMag = Math.max(...cluster.getAllChildMarkers().map((m) => m.options.mag || 0));
+    const size = count < 10 ? 30 : count < 100 ? 38 : 46;
+    return L.divIcon({
+      html: `<span style="--c:${colorForMag(maxMag)}">${count}</span>`,
+      className: 'quake-cluster',
+      iconSize: [size, size],
+    });
+  },
 });
-const quakeHeat = L.heatLayer([], { radius: 18, blur: 22, maxZoom: 6, minOpacity: 0.35 });
+const quakeHeat = L.heatLayer([], {
+  radius: 18,
+  blur: 22,
+  maxZoom: 6,
+  minOpacity: 0.35,
+  gradient: { 0.3: '#6ee7b7', 0.6: '#fbbf24', 0.85: '#f87171', 1: '#fecaca' },
+});
 const quakeLayers = { markers: quakeMarkers, clusters: quakeClusters, heat: quakeHeat };
 const earthquakeLayer = L.layerGroup([quakeMarkers]).addTo(map);
 const flightLayer = L.layerGroup().addTo(map);
@@ -65,6 +85,17 @@ function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   })[c]);
+}
+
+function timeAgo(date) {
+  const mins = Math.round((Date.now() - date) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  return `${Math.round(mins / 60)}h ago`;
+}
+
+function updateLastUpdated() {
+  if (state.lastFetched) document.getElementById('last-updated').textContent = `Updated ${timeAgo(state.lastFetched)}`;
 }
 
 function periodLabel(hours) {
@@ -114,6 +145,7 @@ function quakeMarker(feat) {
   return L.circleMarker([lat, lon], {
     radius: Math.max(4, mag * 1.8),
     color: colorForMag(mag),
+    mag,
     weight: 1,
     fillOpacity: 0.75,
   }).bindPopup(`
@@ -153,52 +185,63 @@ async function loadEarthquakes() {
     state.lastFetched = new Date();
     setError('earthquakes', null);
     renderEarthquakes();
+    updateLastUpdated();
   } catch (err) {
     console.error(err);
     setError('earthquakes', 'Earthquakes unavailable');
   }
 }
 
+// Material "flight" glyph, pointing north so it can be rotated by heading
+const PLANE_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>';
+
 function renderFlights() {
   flightLayer.clearLayers();
   state.flights.forEach((f) => {
+    const altFt = typeof f.alt === 'number' ? `${Math.round(f.alt * 3.28084).toLocaleString()} ft` : 'n/a';
+    const speedKt = typeof f.velocity === 'number' ? `${Math.round(f.velocity * 1.94384)} kt` : 'n/a';
     const marker = L.marker([f.lat, f.lon], {
       title: f.id,
       icon: L.divIcon({
         className: 'flight-icon',
-        html: '✈️',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
+        html: `<span style="transform: rotate(${Number(f.heading) || 0}deg)">${PLANE_SVG}</span>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
       }),
-    }).bindPopup(`<strong>${escapeHtml(f.id)}</strong><br/>Altitude ${f.alt?.toFixed ? f.alt.toFixed(0) : f.alt || 'n/a'} m<br/>${escapeHtml(f.country)}`);
+    }).bindPopup(`
+      <strong>${escapeHtml(f.id)}</strong><br/>
+      ${altFt} • ${speedKt}<br/>
+      ${escapeHtml(f.country)}
+    `);
     flightLayer.addLayer(marker);
   });
 }
 
-function weatherIcon(code) {
-  if (typeof code === 'string') return code; // already an icon/word
-  const map = {
-    0: '☀️',
-    1: '🌤️',
-    2: '⛅️',
-    3: '☁️',
-    45: '🌫️',
-    48: '🌫️',
-    51: '🌦️',
-    61: '🌧️',
-    71: '🌨️',
-    80: '🌧️',
-    95: '⛈️',
-  };
-  return map[code] || 'ℹ️';
-}
+const WEATHER_ICONS = {
+  clear: ['☀️', 'Clear'],
+  partly: ['⛅️', 'Partly cloudy'],
+  cloudy: ['☁️', 'Cloudy'],
+  fog: ['🌫️', 'Fog'],
+  drizzle: ['🌦️', 'Drizzle'],
+  rain: ['🌧️', 'Rain'],
+  snow: ['🌨️', 'Snow'],
+  storm: ['⛈️', 'Thunderstorm'],
+  unknown: ['🌡️', 'Unknown'],
+};
 
 function renderWeather() {
   weatherLayer.clearLayers();
   state.weather.forEach((w) => {
+    const [icon, label] = WEATHER_ICONS[w.condition] || WEATHER_ICONS.unknown;
+    const temp = typeof w.temp === 'number' ? `${Math.round(w.temp)}°` : '–';
     const marker = L.marker([w.lat, w.lon], {
-      icon: L.divIcon({ className: 'weather-icon', html: escapeHtml(weatherIcon(w.icon)), iconSize: [26, 26], iconAnchor: [13, 13] }),
-    }).bindPopup(`<strong>${escapeHtml(w.city)}</strong><br/>${w.temp ?? '–'}°C`);
+      icon: L.divIcon({
+        className: 'weather-badge',
+        html: `<span>${icon}</span><b>${temp}</b>`,
+        iconSize: [62, 28],
+        iconAnchor: [31, 14],
+      }),
+    }).bindPopup(`<strong>${escapeHtml(w.city)}</strong><br/>${label} • ${temp}C`);
     weatherLayer.addLayer(marker);
   });
 }
@@ -250,11 +293,7 @@ function bindControls() {
     input.addEventListener('change', (e) => setQuakeMode(e.target.value));
   });
 
-  document.getElementById('btn-refresh').addEventListener('click', () => {
-    loadEarthquakes();
-    loadFlights();
-    loadWeather();
-  });
+  document.getElementById('btn-refresh').addEventListener('click', refreshAll);
 
   function applyTimeline(val) {
     const days = Number(val) || 0;
@@ -295,24 +334,32 @@ function bindControls() {
     }
   });
 
-  startTimelineAutoplay();
 
-  document.getElementById('dark-mode').addEventListener('change', (e) => {
+  document.getElementById('light-mode').addEventListener('change', (e) => {
     if (e.target.checked) {
-      map.removeLayer(lightTiles);
-      darkTiles.addTo(map);
-    } else {
       map.removeLayer(darkTiles);
       lightTiles.addTo(map);
+    } else {
+      map.removeLayer(lightTiles);
+      darkTiles.addTo(map);
     }
   });
 }
 
+async function refreshAll() {
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true;
+  btn.textContent = 'Refreshing…';
+  await Promise.allSettled([loadEarthquakes(), loadFlights(), loadWeather()]);
+  btn.disabled = false;
+  btn.textContent = 'Refresh';
+}
+
 function init() {
   bindControls();
-  loadEarthquakes();
-  loadFlights();
-  loadWeather();
+  refreshAll();
+  setInterval(refreshAll, AUTO_REFRESH_MS);
+  setInterval(updateLastUpdated, 30 * 1000);
 }
 
 init();

@@ -9,7 +9,7 @@
   --border: #232a36;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   --radius: 14px;
-  --font: "Manrope", "Inter", system-ui, -apple-system, sans-serif;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -20,7 +20,10 @@ body {
     radial-gradient(circle at 80% 0%, rgba(255, 179, 71, 0.07), transparent 30%),
     var(--bg);
   color: var(--text);
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
 a { color: inherit; }
@@ -44,12 +47,21 @@ a { color: inherit; }
   height: 12px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  box-shadow: 0 0 0 6px rgba(79, 209, 197, 0.15);
+  box-shadow: 0 0 0 0 rgba(79, 209, 197, 0.5);
+  animation: live-pulse 2.4s ease-out infinite;
+}
+@keyframes live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(79, 209, 197, 0.5); }
+  70%, 100% { box-shadow: 0 0 0 10px rgba(79, 209, 197, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand .dot { animation: none; box-shadow: 0 0 0 6px rgba(79, 209, 197, 0.15); }
 }
 .title { font-weight: 700; letter-spacing: 0.3px; }
 .subtitle { color: var(--muted); font-size: 13px; }
 
 .actions { display: flex; align-items: center; gap: 12px; }
+.updated { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 button {
   background: var(--accent);
   color: #041015;
@@ -66,16 +78,20 @@ button.ghost {
   border: 1px solid var(--border);
   box-shadow: none;
 }
+button.ghost:hover { border-color: var(--accent); }
 button:active { transform: translateY(1px); }
+button:disabled { opacity: 0.6; cursor: progress; }
 
 .layout {
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: 18px;
   padding: 18px;
+  flex: 1;
+  min-height: 0;
 }
 
-.controls { display: flex; flex-direction: column; gap: 14px; }
+.controls { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
 .card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -92,6 +108,7 @@ button:active { transform: translateY(1px); }
   align-items: center;
   gap: 8px;
   color: var(--muted);
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   user-select: none;
@@ -129,36 +146,87 @@ button:active { transform: translateY(1px); }
 
 .legend { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .legend li { display: flex; align-items: center; gap: 8px; color: var(--muted); }
-.legend-dot {
-  width: 12px;
-  height: 12px;
+.legend-dot, .legend-swatch {
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  display: inline-block;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
 }
 .mag-low { background: #6ee7b7; }
 .mag-mid { background: #fbbf24; }
 .mag-high { background: #f87171; }
-.flights { background: #60a5fa; }
-.heat { background: #fb7185; opacity: 0.7; }
-.cluster { background: #a78bfa; opacity: 0.8; }
-.weather { background: #38bdf8; opacity: 0.8; }
+.legend-swatch { width: 20px; height: 20px; font-size: 14px; }
+.legend-swatch.cluster {
+  font-size: 10px;
+  font-weight: 700;
+  color: #041015;
+  background: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3);
+}
+.legend-swatch.heat {
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6ee7b7, #fbbf24, #f87171, #fecaca);
+}
+.legend-swatch.plane { color: #60a5fa; }
 
 .map-panel { position: relative; }
 #map {
   width: 100%;
-  height: calc(100vh - 120px);
+  height: 100%;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   overflow: hidden;
   box-shadow: var(--shadow);
 }
 
-.flight-icon, .weather-icon {
+.flight-icon { color: #60a5fa; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6)); }
+.flight-icon span { display: grid; place-items: center; width: 100%; height: 100%; }
+
+.weather-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(21, 26, 34, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.weather-badge span { font-size: 15px; }
+
+.quake-cluster span {
   display: grid;
   place-items: center;
-  font-size: 18px;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--c);
+  color: #041015;
+  font-weight: 700;
+  font-size: 12px;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--c) 30%, transparent);
 }
+
+.leaflet-container .leaflet-control-attribution {
+  background: rgba(14, 17, 22, 0.75);
+  color: var(--muted);
+}
+.leaflet-control-attribution a { color: var(--text); }
+
+/* Dark popups to match the UI */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.leaflet-popup-content { line-height: 1.5; }
+.leaflet-popup-content a { color: var(--accent); }
+.leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
 
 .floating-cards {
   position: absolute;
@@ -167,6 +235,7 @@ button:active { transform: translateY(1px); }
   display: grid;
   gap: 10px;
   pointer-events: none;
+  z-index: 1000; /* above Leaflet panes (z-index 400) */
 }
 .pill {
   background: rgba(79, 209, 197, 0.12);
@@ -191,8 +260,18 @@ button:active { transform: translateY(1px); }
 .stat-value { font-weight: 700; }
 
 @media (max-width: 900px) {
+  body { height: auto; }
   .layout { grid-template-columns: 1fr; }
   #map { height: 70vh; }
-  .controls { flex-direction: row; overflow-x: auto; }
+  .updated { display: none; }
+  .topbar { padding: 12px 16px; gap: 12px; }
+  .title { font-size: 15px; }
+  .actions { gap: 8px; }
+  .actions .toggle span { font-size: 13px; }
+  .layout { padding: 12px 16px; gap: 12px; }
+  .floating-cards { top: 8px; right: 8px; left: 8px; justify-items: end; }
+  .info-card { min-width: 0; padding: 8px 12px; font-size: 13px; }
+  .info-card .stat { gap: 16px; padding: 3px 0; }
+  .controls { flex-direction: row; align-items: flex-start; overflow-x: auto; }
   .card { min-width: 260px; }
 }
